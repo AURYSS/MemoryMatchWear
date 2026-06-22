@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.compose.ui.tooling)
     implementation(libs.core.splashscreen)
     implementation(libs.play.services.wearable)
+    implementation(libs.room.ktx)
     implementation(libs.ui)
     implementation(libs.ui.graphics)
     implementation(libs.ui.tooling.preview)
