@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -18,6 +19,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
+import androidx.compose.runtime.getValue
+import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.material.curvedText
@@ -78,9 +81,14 @@ fun BoardScreen(viewModel: MemoryViewModel = viewModel()) {
         }
 
         // Indicador de progreso (pares encontrados)
-        PositionIndicator(
-            stepCount  = GameState.TOTAL_PAIRS,
-            currentStep = state.matchesFound
+        CircularProgressIndicator(
+            progress = state.matchesFound.toFloat() / GameState.TOTAL_PAIRS,
+            modifier = Modifier.fillMaxSize(),
+            startAngle = 295f,
+            endAngle = 245f,
+            strokeWidth = 3.dp,
+            indicatorColor = Color.Cyan,
+            trackColor = Color.DarkGray.copy(alpha = 0.3f)
         )
     }
 }

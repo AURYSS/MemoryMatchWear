@@ -10,12 +10,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import mx.utng.carh.memorymatchwear.presentation.domain.model.GamePhase
 import mx.utng.carh.memorymatchwear.presentation.domain.model.GameState
+import mx.utng.carh.memorymatchwear.presentation.domain.repository.BestTimeRepository
 import mx.utng.carh.memorymatchwear.presentation.domain.usecase.CheckMatchUseCase
 import mx.utng.carh.memorymatchwear.presentation.domain.usecase.FlipCardUseCase
+import mx.utng.carh.memorymatchwear.presentation.domain.usecase.MatchResult
 import mx.utng.carh.memorymatchwear.presentation.domain.usecase.ShuffleBoardUseCase
 
 class MemoryViewModel(
@@ -29,7 +32,6 @@ class MemoryViewModel(
     private val _state = MutableStateFlow(GameState())
     val state: StateFlow<GameState> = _state.asStateFlow()
 
-    // Canal de efectos de una sola vez (haptics, sonido)
     private val _effects = Channel<GameEffect>(Channel.BUFFERED)
     val effects: Flow<GameEffect> = _effects.receiveAsFlow()
 
@@ -56,7 +58,6 @@ class MemoryViewModel(
         val afterFlip = flipCard(current, cardIndex)
         _state.value = afterFlip
 
-        // Solo evaluar si ya hay 2 tarjetas
         if (afterFlip.phase == GamePhase.CHECKING) {
             evaluateMatch(afterFlip)
         }
@@ -64,7 +65,7 @@ class MemoryViewModel(
 
     private fun evaluateMatch(state: GameState) {
         viewModelScope.launch {
-            delay(800L)  // pausa para que el jugador vea las tarjetas
+            delay(800L)
             when (checkMatch(state)) {
                 MatchResult.HIT -> {
                     val newState = applyMatch(state)
@@ -82,29 +83,34 @@ class MemoryViewModel(
     }
 
     private fun applyMatch(state: GameState): GameState {
-        val first  = state.firstSelected!!
-        val second = state.secondSelected!!
+        val first  = state.firstSelected ?: return state
+        val second = state.secondSelected ?: return state
         val newBoard = state.board.mapIndexed { i, card ->
             if (i == first || i == second) card.copy(isMatched = true) else card
         }
+        val matches = state.matchesFound + 1
         return state.copy(
             board          = newBoard,
-            matchesFound   = state.matchesFound + 1,
+            matchesFound   = matches,
             firstSelected  = null,
             secondSelected = null,
-            phase          = if (state.matchesFound + 1 == GameState.TOTAL_PAIRS)
+            phase          = if (matches == GameState.TOTAL_PAIRS)
                 GamePhase.WON else GamePhase.SELECTING_FIRST
         )
     }
 
     private fun flipBothBack(state: GameState): GameState {
-        val first  = state.firstSelected!!
-        val second = state.secondSelected!!
+        val first  = state.firstSelected ?: return state
+        val second = state.secondSelected ?: return state
         val newBoard = state.board.mapIndexed { i, c ->
             if (i == first || i == second) c.copy(isFlipped = false) else c
         }
-        return state.copy(board=newBoard, firstSelected=null,
-            secondSelected=null, phase=GamePhase.SELECTING_FIRST)
+        return state.copy(
+            board = newBoard,
+            firstSelected = null,
+            secondSelected = null,
+            phase = GamePhase.SELECTING_FIRST
+        )
     }
 
     private fun startTimer() {
@@ -126,8 +132,16 @@ class MemoryViewModel(
 }
 
 sealed class GameEffect {
-    object HapticMatch   : GameEffect()
-    object HapticMiss    : GameEffect()
-    object HapticVictory : GameEffect()
+    data object HapticMatch   : GameEffect()
+    data object HapticMiss    : GameEffect()
+    data object HapticVictory : GameEffect()
 }
 
+// UseCases definidos aquí para evitar crear múltiples archivos
+class GetBestTimeUseCase(private val repository: BestTimeRepository) {
+    suspend operator fun invoke(): Long = repository.getBestTime()
+}
+
+class SaveBestTimeUseCase(private val repository: BestTimeRepository) {
+    suspend operator fun invoke(seconds: Long) = repository.saveBestTime(seconds)
+}
